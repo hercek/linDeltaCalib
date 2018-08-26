@@ -1,0 +1,130 @@
+/* [wxMaxima batch file version 1] [ DO NOT EDIT BY HAND! ]*/
+/* [ Created with wxMaxima version 16.12.2 ] */
+
+/* [wxMaxima: title   start ]
+Rostock Tower Errors
+   [wxMaxima: title   end   ] */
+
+/* [wxMaxima: comment start ]
+Copyright © 2014-2018 Peter Hercek.
+You can use, modify, and redistribute this under GNU GENERAL PUBLIC LICENSE Version 3.
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: comment start ]
+This document allows you to get an idea how tower position errors and diagonal rod length error influence
+error in Z height at the printer heat bed. This document is not commented very well but if you do not
+ understand it then study calibration.wxm first. It is more complicated and better documented.
+Then return to this one and it will look very easy :)
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: comment start ]
+Diagonal rod length and x/y coordinates of towers a/b/c (you can change these).
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+r : 297.85 $
+xa :  135.5*cos(-5*%pi/6) $
+ya : 135.5*sin(-5*%pi/6) $
+xc : 0.0 $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+Other  tower coordinates are fixed (to uniquely define coordinate system position with respect to towers).
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+yc : -2*ya $
+xb : -xa $
+yb : ya $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+Conversion functions ta, tb, tc from (x,y,0) to tower coordinates.
+These are model based (i.e. error free).
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+T(xt,yt) := sqrt( r^2 - (x-xt)^2 - (y-yt)^2 )  $
+define( ta(x,y), T(xa, ya) +0*(r-T(xa,ya)) ) $
+define( tb(x,y), T(xb, yb) ) $
+define( tc(x,y), T(xc, yc) ) $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+ Diagonal rod error, tower location errors, and endstop error on tower C can be modified.
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+er :  1.5 $
+exa : 1.5*xa/550 $
+eya :  1.5*ya/550 $
+exc : 0 $
+eza : 0 $
+ezb : 0 $
+ezc : 0 $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+Other errors are fixed so that we do not break coordinate system positioning rules.
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+eyc : -2*eya $
+exb : -exa $
+eyb : eya $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+Equations for (xx,yy,zz) corresponding to the given tower coordinates and diagonal rod.
+These are real life based (i.e. they inculde errors).
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+A : (xx-(xa+exa))^2 + (yy-(ya+eya))^2 + (zz-ta(x,y)+eza)^2 = (r+er)^2 $
+B : (xx-(xb+exb))^2 + (yy-(yb+eyb))^2 + (zz-tb(x,y)+ezb)^2 = (r+er)^2 $
+C : (xx-(xc+exc))^2 + (yy-(yc+eyc))^2 + (zz-(tc(x,y)+ezc))^2 = (r+er)^2 $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+Define the fucntions for Z, Y, and X error around the (x,y) point.
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+ratprint : false $
+XEq : solve([A-B], [xx]) $
+YEq : solve([A+B-2*C], [yy]) $
+ZEq : subst( rhs(XEq[1]), xx, subst(rhs(YEq[1]), yy, C) ) $
+ZErr : solve(ZEq, zz) $
+define( FZErr(x,y), rhs(ZErr[2]) ) $
+define (FYErr(x,y), subst(FZErr(x,y), zz, rhs(YEq[1])) - y) $
+define (FXErr(x,y), subst(FZErr(x,y), zz, rhs(XEq[1])) - x) $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+Show the z error function across the heatbed.
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+rr : 140 $
+l(x,y,f) := if rr^2-x^2-y^2 > 0 then apply(f, [x,y]) else und $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+plot3d( l(x, y, FZErr), [x,-rr,rr], [y,-rr,rr] ) $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+plot3d( l(x,y, FYErr), [x,-rr,rr], [y,-rr,rr] ) $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+plot3d( l(x,y,FXErr), [x,-rr,rr], [y,-rr,rr] ) $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+FXYErr(x,y) := sqrt( FXErr(x,y)^2 + FYErr(x,y)^2) $
+plot3d( l(x,y,FXYErr), [x,-rr,rr], [y,-rr,rr] ) $
+/* [wxMaxima: input   end   ] */
+
+/* Maxima can't load/batch files which end with a comment! */
+"Created with wxMaxima"$

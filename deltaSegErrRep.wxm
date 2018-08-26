@@ -1,0 +1,105 @@
+/* [wxMaxima batch file version 1] [ DO NOT EDIT BY HAND! ]*/
+/* [ Created with wxMaxima version 16.12.2 ] */
+
+/* [wxMaxima: comment start ]
+Copyright © 2017 Peter Hercek.
+You can use, modify, and redistribute this under GNU GENERAL PUBLIC LICENSE Version 3.
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: section start ]
+Estimate of delta segmentation error for Repetier.
+   [wxMaxima: section end   ] */
+
+/* [wxMaxima: comment start ]
+This only considers one special case when effector is moving directly away from a tower.
+If I recall it correctly. It is a long time ago when I wrote the text below.
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+keepfloat : true $
+load(newton1) ;
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+Define your Rostock parameters here:
+r is diagonal rod lenght [mm]
+d is mimimum distance of print area from tower base [mm]
+v is maximum horizontal print head movement speed [mm/s]
+sps is segments per seconds generated when converting cartesian to delta [1/s]
+ls is segment length in the XY plane [mm]
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+r : 300 $
+d : 19 $
+v : 120 $
+sps : 80 $
+sl : v/sps, numer ;
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+Ideal conversion from X postion (which is a distance of head from tower base) to the corresponding
+tower position Ft(X).
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+Ft(X) := sqrt( r^2 - X^2 ) $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+We are going write down the linear approximation error around X postion as a function ET(X) which
+is defined on interval (X-sl/2, X+sl/2).
+K(X) is slope of the approximating line
+Q(X) is the value of the approximating line at point zero
+L(X,x) is the approximation line valid around point X
+ET(X,x) is error in tower coordinate at postion x around point X
+ERR(X) is maximum error in tower coordinate around point X
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+K(X) := ( Ft(X+sl/2) - Ft(X-sl/2) ) / sl $
+Q(X) := Ft(X-sl/2) - K(X) * (X-sl/2)  $
+L(X,x) := K(X) * x + Q(X) $
+ET(X,x) :=  Ft(x) - L(X,x) $
+define( ETd(X,x), diff( ET(X,x), x) ) $
+ERR(X) := float( ET( X, newton( ETd(X,x), x, X, 1e-6) ) ) $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+Fxdx(x) is maximum contribution of tower position error to XY error at x distance from tower base.
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+Fx(t) := sqrt(r^2 - t^2) $
+define( Fxd(t), diff( Fx(t), t) ) $
+Fxdx(x) := min(1, abs(Fxd( Ft(x)))) $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+Lets compute maximum tover and xy coordinate errors at given distances from the tower base.
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+points : makelist(i, i, d, r-d) $
+errors_t : map( ERR, points ) $
+errT_to_errXY_coefs : map( Fxdx, points ) $
+errors_xy : map( "*", errT_to_errXY_coefs, errors_t ) $
+err_t_lim : 1.5 * errors_xy[length(errors_xy)], numer ;
+limited_errors_t : map( lambda([x], min(x,err_t_lim)), errors_t ) $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+... and show it.
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+plot2d(
+  [[discrete, points, limited_errors_t],
+  [discrete, points, errors_xy]],
+  [legend, "max carriage position error [mm]", "max hotend position error [mm]"],
+  [xlabel, "distance from tower [mm]"],
+  [ylabel, ""]) $
+/* [wxMaxima: input   end   ] */
+
+/* Maxima can't load/batch files which end with a comment! */
+"Created with wxMaxima"$

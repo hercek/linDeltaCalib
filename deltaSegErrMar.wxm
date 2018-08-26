@@ -1,0 +1,142 @@
+/* [wxMaxima batch file version 1] [ DO NOT EDIT BY HAND! ]*/
+/* [ Created with wxMaxima version 16.12.2 ] */
+
+/* [wxMaxima: comment start ]
+Copyright © 2014-2017 Peter Hercek.
+You can use, modify, and redistribute this under GNU GENERAL PUBLIC LICENSE Version 3.
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: section start ]
+Estimate of delta segmentation error for Marlin.
+   [wxMaxima: section end   ] */
+
+/* [wxMaxima: comment start ]
+This only considers one special case when effector is moving directly away from a tower.
+If I recall it correctly. It is a long time ago when I wrote the text below.
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+keepfloat : true $
+load(newton1) ;
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+Define your Rostock parameters here:
+r is diagonal rod lenght [mm]
+d is mimimum distance of print area from tower base [mm]
+v is maximum horizontal print head movement speed [mm/s]
+sps is segments per seconds generated when converting cartesian to delta [1/s]
+p is mumber from interval (0:1) which specifies where we take maximum linear approximation error
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+r : 300 $
+d :  19 $
+v : 120 $
+sps : 80 $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+Ideal conversion from X postion (which is a distance of head from tower base) to the corresponding
+tower position t(X).
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+t(X) := sqrt( r^2 - X^2 ) $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+We need to find out which tower is limiting the speed of movement. Lets assume we are moving
+directly to tower A. Distance of head from the tower A base is X, and from tower B base is Y.
+We need to find out when change in X results in the same change in tower coordinaates in for
+both tower A and B.
+Y(X) is distance to tower B based on distance to tower A.
+Xb is the X position at which changes in tower coordinates are the same, i.e. at Xb and higher
+values the tower A takes ower the maximum speed limit of the head.
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+Y(X) := sqrt( (X/2)^2 + (r/2 * sqrt(3) - X * sqrt(3)/2)^2 ) $
+define( TAd(X), - diff( t(X), X) ) $
+define( TBd(X), diff( t(Y(X)), X) ) $
+Xb : newton( TAd(X)-TBd(X), X, r/3, 1e-6 ) $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+plot2d( [TAd(X), TBd(X)], [X,10,r/2-1] ) $
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: comment start ]
+Compute segment length in XY plane as it is limited by maximum tower speeds.
+Sa(X) is valid for X>Xb.
+Sb(X) is valid for X<Xb.
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+Sa(X) := v / (TAd(X) * sps ) $
+Sb(X) := v / (TBd(X) * sps ) $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+We are going write down the linear approximation error around X postion as a function ET(X) which
+is defined on interval (X-s/2, X+s/2). s represents either Sa(X) or Sb(X).
+K(X) is slope of the approximating line
+Q(X) is the value of the approximating line at point zero
+L(X,x) is the approximation line valid around point X
+ET(X,x) is error in tower coordinate at postion x around point X
+ERR(X) is maximum error in tower coordinate around point X
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+Ka(X) := ( t(X+Sa(X)/2) - t(X-Sa(X)/2) ) / Sa(X) $
+Qa(X) := t(X-Sa(X)/2) - Ka(X) * (X-Sa(X)/2)  $
+La(X,x) := Ka(X) * x + Qa(X) $
+ETa(X,x) :=  t(x) - La(X,x) $
+define( ETad(X,x), diff( ETa(X,x), x) ) $
+ERRa(X) := float( ETa( X, newton( ETad(X,x), x, X, 1e-6) ) ) $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+That was for all X>Xb. Now the same for X<Xb.
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+Kb(X) := ( t(X+Sb(X)/2) - t(X-Sb(X)/2) ) / Sb(X) $
+Qb(X) := t(X-Sb(X)/2) - Kb(X) * (X-Sb(X)/2)  $
+Lb(X,x) := Kb(X) * x + Qb(X) $
+ETb(X,x) :=  t(x) - Lb(X,x) $
+define( ETbd(X,x), diff( ETb(X,x), x) ) $
+ERRb(X) := float( ETb( X, newton( ETbd(X,x), x, X, 1e-6) ) ) $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+Lets compute maximum tover coordinate errors at given distances from the tower base.
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+points_b : makelist(i, i, d, floor(Xb)) $
+points_a : makelist(i, i, floor(Xb)+1, r-d) $
+points : append(points_b, points_a) $
+errors_b : map( ERRb, points_b ) $
+errors_a : map( ERRa, points_a ) $
+errors : append(errors_b, errors_a) $
+segments_b : map( lambda([i], Sb(i)/1000), points_b ) $
+segments_a : map( lambda([i], Sa(i)/1000), points_a ) $
+segments : append(segments_b, segments_a) $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+... and show it.
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+plot2d(
+  [[discrete, points, errors],
+  [discrete, points, segments]],
+  [legend, "max carriage position error [mm]", "max delta segment size [m]"],
+  [xlabel, "distance from tower [mm]"],
+  [ylabel, ""]) $
+/* [wxMaxima: input   end   ] */
+
+/* Maxima can't load/batch files which end with a comment! */
+"Created with wxMaxima"$

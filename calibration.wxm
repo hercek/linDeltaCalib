@@ -1,0 +1,506 @@
+/* [wxMaxima batch file version 1] [ DO NOT EDIT BY HAND! ]*/
+/* [ Created with wxMaxima version 16.12.2 ] */
+
+/* [wxMaxima: title   start ]
+Rostock Calibration
+   [wxMaxima: title   end   ] */
+
+/* [wxMaxima: comment start ]
+Copyright © 2014-2018 Peter Hercek.
+You can use, modify, and redistribute this under GNU GENERAL PUBLIC LICENSE Version 3.
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: comment start ]
+This document helps to find proper values for these firmware parameters:
+* tower positions,
+* tower tilt (each tower can be independently tilted in a different direction),
+* bed tilt (which is the same as all toers tilted in one direction - i.e. it is a subset of the previous point),
+* diagonal rod length (for each tower independently),
+* (micro)step length, 
+* top endstop position offsets.
+You cannot optimize tower positions, diagonal rod length and microstep length all at once.  You
+can optimize only two of these three at once. Otherwise the system would not be constrained
+enough and it would diverge.
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: section start ]
+Applicability
+   [wxMaxima: section end   ] */
+
+/* [wxMaxima: fold    start ] */
+
+/* [wxMaxima: comment start ]
+Errors in these firmware parameters can be fixed perfectly provided the assumptions bellow are
+valid:
+* We assume that the diagonal rods going to one tower have the same length (although the common 
+length is not known precisely). You can achieve this with a jig. 
+* We assume that a line connecting rod ends on a tower is parallel to the line connecting the
+corresponding rod ends on the platform.  This will not be true almost always but there is a hope that
+small differences will not matter enough to screw up the search for best parameters. The more the
+parralelogram is squezed the bigger this imprecision will tilt/rotate the platform and ivalidate our
+approach. This screws up especitally YX dimensions. It is less bad for Z-height which is measured by
+our Z-probe and used here. Also our delta printers do not print sideways enough to decrease
+the diagonal rod distance too much. Therefore there is a hope.
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: fold    end   ] */
+
+/* [wxMaxima: section start ]
+Notation
+   [wxMaxima: section end   ] */
+
+/* [wxMaxima: comment start ]
+In this document:
+* cartesian coordinates are refered as x,y,z;
+* towers are refered as a,b,c;
+* precise common rod length is r;
+* diagonal rod lengths are refered for each tower as ra, rb, rc;
+* imprecise values (because of incorrect firmware parameters) have prefix i;
+* values measured in steps (instead of SI units) have suffix s;
+* tower carriage position offsets are marked as oa, ob, oc for towers a, b, c respectively;
+* tower carriage positions (coordinates on towers) are ta, tb, tc when measured from platform;
+* tower carriage positions are tea, teb, tec when measured from end stops;
+* (micro)step length is sl (for the corresponding towers it is sla, slb, slc);
+* z length (distance from endstop to heat bed) is zl.
+We want to make our coordinate system as fixed as possible. Lets mark (x,y) coordinates of towers
+(a, b, c) as xa, ya, xb, yb, xc, yc. We place the coordinate system so that:  xa = -xb, ya = yb, yc = -2*ya.
+This will allow us to define tower positions with only 3 numbers. If the base plate is done precisely
+then it will be the same as the firmware defaults computed from DELTA_RADIUS (see the firmware
+source code).
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: section start ]
+Input parameter definition
+   [wxMaxima: section end   ] */
+
+/* [wxMaxima: comment start ]
+Define your geometry as specified in the firmware here (18 optimization parameters and z-length):
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+isla : 1/80.0 $
+islb : isla $
+islc : isla $
+ira : 299.26629923 $
+irb : ira $
+irc : ira $
+ixa : -117.6263353921678 $
+iya : -68.06534027303194 $
+ixc : -0.9359671212723976 $
+ioas : 0 $
+iobs : 0 $
+iocs : 0 $
+idxa : 0 $
+idya : 0 $
+idxb : 0 $
+idyb : 0 $
+idxc : 0 $
+idyc : 0 $
+izl : 621.3 $
+ir : 297.85 $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+These tower positions and their errors are fixed because of the limitations we place on our coordinate system.
+We also fix the actually printer heigth zl to izl because there is a dependency between zl and endstop offset
+adjutements (ea, eb, ec). We cannot optimize (zl, ea, eb, ec) all together.
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+ixb : - ixa $
+xb : -xa $
+iyb : iya $
+yb : ya $
+iyc : -2*iya $
+yc : -2*ya $
+zl : izl $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: section start ]
+Deriving cartesian->delta transformation
+   [wxMaxima: section end   ] */
+
+/* [wxMaxima: fold    start ] */
+
+/* [wxMaxima: comment start ]
+Equations for the firmware. These are not needed for the calibration parameter search. They are
+here only for reference to find the best approach how to implement all the new calibration
+parameters in firmware. The firmware query current position (M114) command must report
+also the tower position ta, tb, tc. They will be needed by the calibration parameter search later.
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+Acur : (x-(xa+dxa*ta))^2 + (y-(ya+dya*ta))^2 + ta^2*(1-dxa^2-dya^2) - ra^2 = 0 ;
+Bcur : (x-(xb+dxb*tb))^2 + (y-(yb+dyb*tb))^2 + tb^2*(1-dxb^2-dyb^2) - rb^2 = 0 ;
+Ccur : (x-(xc+dxc*tc))^2 + (y-(yc+dyc*tc))^2 + tc^2*(1-dxc^2-dyc^2) - rc^2  = 0 ;
+TA: ta = zl - tea $
+TB: tb = zl - teb $
+TC: tc = zl - tec $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+coeff(lhs(expand(Acur)), ta,2);
+coeff(lhs(expand(Acur)), ta,1);
+coeff(lhs(expand(Acur)), ta,0);
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+The solution for ta in Acur would look much nicer if xy and ya were zero, i.e. the coordinate
+system would be temporarily moved so that its center is at the tower base:
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+solve(subst(0, ya, subst(0, xa,Acur)), ta)[2];
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+And that is the same as:
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+sqrt((dya*y+dxa*x)^2 + ra^2 - y^2 - x^2)  + (dya*y+dxa*x);
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+... and that is our cartesian to delta transformation!
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: fold    end   ] */
+
+/* [wxMaxima: section start ]
+Deriving the fitness function
+   [wxMaxima: section end   ] */
+
+/* [wxMaxima: comment start ]
+Three quations (one for each tower) using precise callibration parameters for point (x,y) and tower 
+coordinates (ta,tb,tc). with carriage positions on towers (ta,tb,tc). These equations are valid when
+the head is at the heatbed (z=0). They use also precise tower postions ta, tb, tc for now.
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+A : (x-(xa+dxa*ta))^2 + (y-(ya+dya*ta))^2 + ta^2 *(1-dxa^2-dya^2) - ra^2 = 0 $
+B : (x-(xb+dxb*tb))^2 + (y-(yb+dyb*tb))^2 + tb^2 *(1-dxb^2-dyb^2) - rb^2 = 0 $
+C : (x-(xc+dxc*tc))^2 + (y-(yc+dyc*tc))^2 + tc^2 *(1-dxc^2-dyc^2) - rc^2 = 0 $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+Lets precisely tie all the calibration paramters for one (ta,tb,tc) representing one point on heatbed.
+We do it by getting rid of x and y (which we cannot precisely measure when Z-probing).
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+XYEqs: solve([C-A, C-B], [x,y])[1] $
+ZEq : subst( rhs(XYEqs[1]), lhs(XYEqs[1]), subst( rhs(XYEqs[2]), lhs(XYEqs[2]), C ) ) $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+We have all the 18 optimization parameters except (oa, ob, oc) and (sla, slb, slc) in ZEq now.
+ZEq is precise (it describes the real life) but the tower positions the firmware will report are
+not precise (they use incorrect step length). We need to modify our ZEq so that it models also
+the imprecise step length used by firmware and imprecise tower positions (itas, itbs, itcs) reported
+when probing. Firmware always counts number of steps teXs (X is a placeholder for one of a, b, c)
+from the top endstops using equations iTP. The precise equations TP  are analogous. We derive
+what tX actually means first.
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+iTP : itXs = izl/islX - teXs $
+iSeq : solve(iTP, teXs)[1] ;
+TP : tX = zl - (teXs+oXs)*slX $
+Seq: subst(rhs(iSeq), lhs(iSeq), TP) ;
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+We insert our substitue  for (ta, tb, tc) into ZEq and get ZFn with all the optimization paramters
+in it. We do the same for XYeqs.  XYeqs will be used only for visualization of the results. ZFn will
+be used for the calibration itself. ZFn is ready to receive our probe points (itas, itbs, itcs). Then we
+extend ZFn application over all measurement points in function ToZFns.
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+define(TxFn(oXs, slX, ioXs, islX, itXs), expand(rhs(Seq))) ;
+
+define( ZFn(itas, itbs, itcs),
+subst(TxFn(oas, sla, ioas, isla, itas), ta, 
+subst(TxFn(obs, slb, iobs, islb, itbs), tb, 
+subst(TxFn(ocs, slc, iocs, islc, itcs), tc, 
+    lhs(ZEq))))) $
+
+XYFns :
+subst(TxFn(oas, sla, ioas, isla, itas), ta, 
+subst(TxFn(obs, slb, iobs, islb, itbs), tb, 
+subst(TxFn(ocs, slc, iocs, islc, itcs), tc, 
+    map(rhs, XYEqs)))) $
+
+ToZFns(m) := map( lambda([args], apply(ZFn, args)), m ) $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: section start ]
+Input of measurement points
+   [wxMaxima: section end   ] */
+
+/* [wxMaxima: comment start ]
+Now we will Z-probe in at least as many points as the number of parameters we are goint to optimize.
+The best points are the center, near each tower base, and most far away from each tower base. Select the
+non-center points as far away from the center as possible. These are the first 7 points. Add more points if
+you are goingt to optimize more than 7 parameters.  If you want nice grapns later then generate many
+probing points in a regular grid and specify aslo the grid spacing gs [mm]. I take about 100 of measurement
+points regularly spread over the whole heatbed. The measurement will be done by touching printhead with
+the heatbed at these points and reading out the carriage positions on towers  from heatbed as reported by
+the firmware (itas,itbs,itcs). The data format is [[itas,itbs,itcs]]. Define the measured data m here:
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+gs : 12 ;
+m :
+ [[21055,21927,22945] ,[23953,20590,15410] ,[19340,17280,24424] ,[19252,24402,15908] ,[22290,23114,19616]
+,[21852,19101,23480] ,[15832,22676,22620] ,[24162,19914,15129] ,[23909,20541,19986] ,[22346,23168,17942]
+,[23786,20396,20642] ,[22783,22783,17974] ,[21156,20250,23633] ,[22777,22777,18855] ,[23661,21156,20154]
+,[22676,22676,15886] ,[23830,19508,21028] ,[24561,18463,16642] ,[23232,21562,20909] ,[24168,18954,20181]
+,[23770,16261,21181] ,[15196,22243,22907] ,[23798,18475,21321] ,[16798,22535,22895] ,[13839,20458,23767]
+,[20730,20730,23649] ,[18151,23550,21761] ,[21402,18582,23756] ,[23700,21199,15623] ,[22057,22889,20967]
+,[14877,20256,23990] ,[22751,22751,16993] ,[21932,20150,23258] ,[16931,24229,20079] ,[20199,23618,21201]
+,[16269,23778,21132] ,[19301,22860,22620] ,[22354,17657,23160] ,[23510,21861,17877] ,[24018,16626,20687]
+,[24429,19289,17007] ,[18420,22127,23316] ,[17765,23257,22187] ,[21835,21835,22557] ,[23026,22199,20338]
+,[19868,24125,19740] ,[22239,23064,15851] ,[21182,17265,23851] ,[15778,19999,24167] ,[20148,21930,23243]
+,[14464,21758,23149] ,[21315,23803,17719] ,[21705,23365,20254] ,[23158,19655,22229] ,[20613,12635,23547]
+,[18891,22517,22991] ,[17266,21183,23827] ,[17464,24599,17981] ,[19722,19722,24158] ,[23804,21316,17746]
+,[22499,22499,20994] ,[18639,20558,24071] ,[21801,23454,19539] ,[24643,17527,17179] ,[17992,20895,23968]
+,[17900,18924,24474] ,[23625,19254,21563] ,[21926,21054,22950] ,[23137,22314,16968] ,[23159,22337,18829]
+,[17999,19983,24261] ,[20000,24232,16243] ,[23066,21381,21494] ,[20673,24023,16514] ,[22726,22726,19643]
+,[19710,21530,23565] ,[21217,13619,23392] ,[19117,19117,24344] ,[19715,23999,20401] ,[23058,16384,22334]
+,[18582,21402,23737] ,[20249,21155,23626] ,[22127,18420,23342] ,[20822,23364,21364] ,[17328,20330,24160]
+,[24024,20674,16551] ,[23530,21009,20798] ,[20330,17328,24179] ,[20030,24257,18186] ,[24425,19283,17939]
+,[19655,23158,22202] ,[23485,15833,21625] ,[20701,24046,18425] ,[22720,21880,21557] ,[18445,18445,24496]
+,[18453,24554,17531] ,[21196,23697,15591] ,[16203,22101,23179] ,[24125,19868,19778] ,[22247,19555,23157]
+,[21377,22236,22531] ,[21759,14465,23195] ,[24231,19999,16289] ,[22594,19950,22789] ,[23375,18944,22038]
+,[22235,21376,22537] ,[21145,22848,21997] ,[23082,18578,22461] ,[22848,21145,22011] ,[23152,15325,22013]
+,[24376,19221,18766] ,[17657,22354,23128] ,[23798,21310,18638] ,[24297,18107,19873] ,[20293,22896,22354]
+,[20626,16572,24045] ,[16567,20621,24016] ,[23681,17262,21516] ,[23771,21279,16748] ,[16579,19700,24312]
+,[24047,20702,18459] ,[15325,23152,21959] ,[21859,13245,22887] ,[21676,17874,23612] ,[23152,20583,21908]
+,[23550,18151,21802] ,[22636,22636,20357] ,[16859,23394,21904] ,[18148,22740,22800] ,[22894,22062,20979]
+,[23930,17605,21031] ,[19955,23411,21731] ,[18463,24561,16578] ,[21319,12310,23087] ,[19255,23626,21529]
+,[24211,19974,19045] ,[23451,21798,19552] ,[18327,24461,14273] ,[22536,16799,22935] ,[23749,21255,19436]
+,[24331,19162,14776] ,[22737,18145,22830] ,[12310,21319,23035] ,[24000,19716,20439] ,[22859,19300,22645]
+,[20258,14879,24023] ,[18393,24509,18382] ,[24294,19115,19513] ,[22337,14040,22637] ,[21527,19707,23575]
+,[20582,23151,21886] ,[16448,21422,23644] ,[17494,24620,15021] ,[24134,17885,20484] ,[17266,23685,21472]
+,[19290,24430,16954] ,[18577,23081,22427] ,[20038,24264,17271] ,[21915,17092,23440] ,[18279,24425,19142]
+,[21254,23748,19411] ,[22314,23137,16959] ,[19115,24294,19467] ,[21011,23532,20779] ,[18596,19582,24325]
+,[24402,19252,15965] ,[21858,23507,17857] ,[24619,17493,15101] ,[23362,21702,20266] ,[24257,20030,18228]
+,[19699,16578,24329] ,[20711,24055,17525] ,[18476,23799,21280] ,[17166,24392,19455] ,[21825,23476,16869]
+,[20561,18642,24086] ,[20166,19211,24138] ,[24511,17340,18819] ,[19912,24160,15076] ,[21379,23064,21478]
+,[19162,24331,14714] ,[20459,13840,23806] ,[18945,23376,22005] ,[22104,22104,22095] ,[21422,16448,23676]
+,[18956,24170,20139] ,[24463,18329,14350] ,[13245,21859,22835] ,[23621,20202,21232] ,[15714,20870,23837]
+,[16381,23055,22284] ,[17314,22917,22563] ,[19283,24425,17889] ,[12634,20612,23502] ,[24423,18277,19195]
+,[23402,21745,15770] ,[24386,17160,19510] ,[22671,15827,22661] ,[24529,18420,15569] ,[22195,23022,20326]
+,[23478,21827,16889] ,[22918,17315,22603] ,[24506,18390,18436] ,[22515,18889,23015] ,[21652,22500,22068]
+,[19102,21853,23462] ,[24650,17537,16205] ,[21307,23795,18611] ,[21154,23659,20129] ,[17092,21915,23408]
+,[21519,21519,22970] ,[20260,20260,23928] ,[18111,24301,19824] ,[24265,20039,17316] ,[21152,21152,23334]
+,[17529,24645,17111] ,[22340,23162,18824] ,[20397,23787,20614] ,[24224,16926,20134] ,[24053,20709,17557]
+,[21073,19207,23852] ,[21852,23502,18745] ,[21280,23772,16722] ,[20898,17995,23990] ,[15836,23488,21572]
+,[18742,24004,20740] ,[22288,20538,22895] ,[20693,19764,23910] ,[19513,23835,20997] ,[20682,21570,23312]
+,[19975,24212,19007] ,[19765,20694,23904] ,[17607,23932,20983] ,[16633,24025,20636] ,[23393,16858,21951]
+,[18422,24531,15503] ,[22326,22326,21576] ,[17539,24652,16132] ,[22899,20296,22377] ,[22590,20865,22477]
+,[17345,24516,18760] ,[20872,15716,23871] ,[21567,20679,23315] ,[24005,18743,20784] ,[20587,23950,15367]
+,[22101,16203,23218] ,[19982,17998,24273] ,[17878,21680,23591] ,[24554,18453,17591] ,[17888,24137,20436]
+,[19223,24378,18720] ,[19583,18597,24332] ,[21068,14740,23653] ,[23409,19953,21757] ,[20866,22591,22465]
+,[22245,15198,22954] ,[23255,17763,22226] ,[22500,21652,22074] ,[13618,21216,23347] ,[21747,23404,15753]
+,[19954,22598,22774] ,[23504,21854,18763] ,[20646,24000,19234] ,[20536,22286,22880] ,[14738,21066,23614]
+,[18923,17899,24479] ,[23064,22239,15861] ,[23363,20821,21384] ,[21567,23237,20900] ,[23172,22350,17954]
+,[24597,17462,18046] ,[21611,15519,23454] ,[19557,22249,23140] ,[17281,19341,24413] ,[23116,22292,19625]
+,[19215,20170,24136] ,[20547,23915,19962] ,[14046,22343,22590] ,[21880,22720,21550] ,[24002,20648,19267]
+,[22769,14730,22349] ,[19207,21073,23839] ,[20006,15785,24198] ,[15519,21611,23416]]$
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+Set your z-probe height. The probe measure point should be just below the tip; i.e. its (x,y) offset should be (0,0).
+It should also have zero height (or as small as possible height). If the z-probe height is nonzero then set its value
+here in steps. Use the average value of isla, islb, isc when converting to steps. 
+It does not matter much if it is not set precisely provided that your towers are almost perpendicular to heatbed..
+In such a case, the only consequence of incorrectly set probe height is that your all your computed tower
+endstop adjustements (oa,ob,oc) will be uniformly offset by the probe height error.
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+ph : 816 $ 
+mm : map( lambda([lst], [ lst[1]-ph, lst[2]-ph, lst[3]-ph ]), m) $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: section start ]
+Computation of calibration parameters
+   [wxMaxima: section end   ] */
+
+/* [wxMaxima: comment start ]
+And finally we just need to find [xa,ya,xc,oa,ob,oc] which will minimize sum of squares of ZEq over mm.
+Optionally we can also optimize for best diagonal rod length and (micro)step length.
+
+Occasionally, there may be problems with convergence when optimizing both  diagonal rod (xor
+(micro)step length) and delta radius (tower positions) at once.
+The tower positions contain the delta radius (corrected for tower radial/diagonal distance errors
+ if the towers are not precisely positioned). Both errors in the diagonal rod length and the delta radius
+lead to nicely concave/convex heatbed z-position error near the centre (looks like a tip of ellipsoid or
+paraboloid). These two can partialy compensate for each other especially when measurements are not
+done far enough from centre. That means that their convergence (when optimized and the measurement
+points are not far enough from the centre) together may be poor. They can drift from their precise values
+together more easily. This drift will result in incorrect size (well and also incorrect shape because the error
+is not linear) of the printed objects. Incorrect (micro)step length setting for the tower carriages results
+in a similar kind of error too.
+
+There will always be convergence problems if you try to optimize diagonal rod length, (micro)step 
+length and delta radius (tower positions) all at once. The reason is that these parameters are all linearly
+dependent. That means the position errors measured by z-probe in steps are about the same when you
+increase/decrease all of them by a constant factor.
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+load(minpack) $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+define( ZFns_rs(ra,rb,rc, sla,slb,slc), ZFns ) $
+define( ZFns_s(sla,slb,slc), ZFns ) $
+define( ZFns_r(ra,rb,rc), ZFns ) $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: subsect start ]
+Selection of what NOT to optimize
+   [wxMaxima: subsect end   ] */
+
+/* [wxMaxima: comment start ]
+We define optimization parameters which we keep fixed in fArg and their fixed value in fVal.
+Paramters which are going to be optimized are in vArg and the initial value from which for
+the optimal values starts is in vVal.
+Evaluate only one sub-sub-section below!
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: subsubsect start ]
+Zero tower tilt and fixed diagonal rod and microstep length
+   [wxMaxima: subsubsect end   ] */
+
+/* [wxMaxima: input   start ] */
+fArg:[ra,rb,rc,  sla,slb,slc,  dxa,dya, dxb,dyb, dxc,dyc] $ 
+fVal: [ira,irb,irc,  isla,islb,islc,  0,0,  0,0,  0,0] $
+vArg: [xa,ya,xc,  oas,obs,ocs] $
+vVal: [ixa,iya,ixc,  0,0,0] $
+err: 'err_1 $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: subsubsect start ]
+Fixed diagonal rod and microstep length
+   [wxMaxima: subsubsect end   ] */
+
+/* [wxMaxima: fold    start ] */
+
+/* [wxMaxima: input   start ] */
+fArg:[ra,rb,rc, sla,slb,slc] $ 
+fVal: [ira,irb,irc, isla,islb,islc] $
+vArg: [xa,ya,xc,  dxa,dya,  dxb,dyb,  dxc,dyc,  oas,obs,ocs] $
+vVal: [ixa,iya,ixc,  0,0,  0,0,  0,0,  0,0,0] $
+err: 'err_2 $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: fold    end   ] */
+
+/* [wxMaxima: subsubsect start ]
+Fixed microstep length
+   [wxMaxima: subsubsect end   ] */
+
+/* [wxMaxima: fold    start ] */
+
+/* [wxMaxima: input   start ] */
+fArg:[sla,slb,slc] $ 
+fVal: [isla,islb,islc] $
+vArg: [ra,rb,rc,  xa,ya,xc,  dxa,dya,  dxb,dyb,  dxc,dyc,  oas,obs,ocs] $
+vVal: [ira,irb,irc,  ixa,iya,ixc,  0,0,  0,0,  0,0,  0,0,0] $
+err: 'err_3 $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: fold    end   ] */
+
+/* [wxMaxima: subsubsect start ]
+Fixed diagonal rod length
+   [wxMaxima: subsubsect end   ] */
+
+/* [wxMaxima: fold    start ] */
+
+/* [wxMaxima: input   start ] */
+fArg:[ra,rb,rc] $ 
+fVal: [ir,ir,ir] $
+vArg: [sla,slb,slc,  xa,ya,xc,  dxa,dya,  dxb,dyb,  dxc,dyc,  oas,obs,ocs] $
+vVal: [isla,islb,islc,  ixa,iya,ixc,  0,0,  0,0,  0,0,  0,0,0] $
+err: 'err_4 $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: fold    end   ] */
+
+/* [wxMaxima: subsect start ]
+Optimization and result analyzes
+   [wxMaxima: subsect end   ] */
+
+/* [wxMaxima: comment start ]
+Run the optimization itself and store the result in RV. Compute the average postion error with
+the optimized parameters (avgPosErr).
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+define( funmake(ZFns, fArg), ToZFns(mm) ) $
+RV: minpack_lsquares( apply(ZFns, fVal), vArg,  vVal ) ;
+avgPosErr : sqrt(RV[2]/length(m)) / (2*irc) ; 
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+Define analytics functions GetX, GetY, GetErr which compute XY position and the position error
+for the given (itas, itbs, itcs). Fill the analytics into lists: chck_3d, chck_2d, chck_err.  One element
+for each measurement point.
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+define( funmake(GetX_hlp, append(fArg, vArg)), XYFns[1]) $
+define( GetX(itas, itbs, itcs), apply(GetX_hlp, append(fVal, RV[1])) ) $
+define( funmake(GetY_hlp, append(fArg, vArg)), XYFns[2]) $
+define( GetY(itas, itbs, itcs), apply(GetY_hlp, append(fVal, RV[1])) ) $
+define( funmake(GetErr_hlp, append(fArg, vArg)), ZFn(itas, itbs, itcs)) $
+define( GetErr(itas, itbs, itcs), apply(GetErr_hlp, append(fVal, RV[1]))/(2*irc) ) $
+chck_3d: map( lambda([p], [[round(apply(GetX, p)/gs), round(apply(GetY, p)/gs)], abs(round(1000*apply(GetErr, p)))]), mm ) $
+chck_2d: map( lambda([p], p[1]), chck_3d ) $
+chck_err: map( lambda([p], p[2]), chck_3d ) $
+''err: chck_err $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+Show the distribution of the measurement potins:
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+plot2d([discrete, chck_2d], [style, points], grid2d) ;
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+Show the distribution of the position error after optimization:
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+plot2d([discrete, sort(chck_err)], grid2d) ;
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+Show the position error map after optimization:
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+f(x,y) := 'assoc([round(x),round(y)], chck_3d, und) $
+plot3d(f(x,y), [x,-8,8], [y,-8,8], [grid,32,32], color_bar, [ztics,false], [title, "position error [µm]"], [elevation,0], [azimuth,0]) ;
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+Compare error distributions between different optimization runs:
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+plot2d([ [discrete,  sort(err_1)], [discrete, sort(err_2)], [discrete, sort(err_3)], [discrete, sort(err_5)] ],
+     [legend, "no tower tilt, rod and step length fixed", "rod and step length fixed", "step length fixed", "rod length fixed"],
+     [title, "expected position error distribution [µm]"]) ;
+/* [wxMaxima: input   end   ] */
+
+/* Maxima can't load/batch files which end with a comment! */
+"Created with wxMaxima"$
