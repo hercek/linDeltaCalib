@@ -61,7 +61,7 @@ In this document:
 * tower carriage positions (coordinates on towers) are ta, tb, tc when measured from platform;
 * tower carriage positions are tea, teb, tec when measured from end stops;
 * (micro)step length is sl (for the corresponding towers it is sla, slb, slc);
-* z length (distance from endstop to heat bed) is zl.
+* tower length (distance from endstop to heat bed  along the tower) is zl.
 We want to make our coordinate system as fixed as possible. Lets mark (x,y) coordinates of towers
 (a, b, c) as xa, ya, xb, yb, xc, yc. We place the coordinate system so that:  xa = -xb, ya = yb, yc = -2*ya.
 This will allow us to define tower positions with only 3 numbers. If the base plate is done precisely
@@ -120,7 +120,9 @@ zl : izl $
 Deriving cartesian->delta transformation
    [wxMaxima: section end   ] */
 
-/* [wxMaxima: fold    start ] */
+/* [wxMaxima: comment start ]
+DO NOT EXECUTE THIS SECTION WHEN CALIBRATING
+   [wxMaxima: comment end   ] */
 
 /* [wxMaxima: comment start ]
 Equations for the firmware. These are not needed for the calibration parameter search. They are
@@ -165,7 +167,85 @@ sqrt((dya*y+dxa*x)^2 + ra^2 - y^2 - x^2)  + (dya*y+dxa*x);
 ... and that is our cartesian to delta transformation!
    [wxMaxima: comment end   ] */
 
-/* [wxMaxima: fold    end   ] */
+/* [wxMaxima: section start ]
+Finding cartesian position after homing
+   [wxMaxima: section end   ] */
+
+/* [wxMaxima: comment start ]
+DO NOT EXECUTE THIS SECTION WHEN CALIBRATING
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: comment start ]
+We are homed when all cariages are moved zl distance from heatbed (to endstops).
+We find platform cartesian XY position at first:
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+kill(zl)$
+Ahome : subst(zl, ta, Acur);
+Bhome : subst(zl, tb, Bcur);
+Chome : subst(zl, tc, Ccur);
+XYhome : solve([Chome-Ahome, Chome-Bhome], [x,y])[1] ;
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+ratdenom(rhs(XYhome[1])) - ratdenom(rhs(XYhome[2]));
+dnom: ratdenom(rhs(XYhome[1])) / 2;
+xnum: ratnumer(rhs(XYhome[1]));
+ynum: ratnumer(rhs(XYhome[2]));
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+There are many repeated expressions there:
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+dxal : dxa * zl $
+dyal : dya * zl $
+dxbl : dxb * zl $
+dybl : dyb * zl $
+dxcl : dxc * zl $
+dycl : dyc * zl $
+dxbal : dxbl - dxal $
+dxcal : dxcl - dxal $
+dxcbl : dxcl - dxbl $
+dybal : dybl - dyal $
+dycal : dycl - dyal $
+dycbl : dycl - dybl $
+dxbpal : dxbl + dxal $
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+dnom_1 : dxbal*dycl - dxcal*dybl + dxcbl*dyal +
+-3*dxbal*ya - dybal*xc - (dycbl+dycal)*xa +
+6*xa*ya $
+dnom - dnom_1;
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+xnum_1 : (3*dycl*ya - dxcl*xc)*2*dybal + (-dxbpal*dycl + dxal*dybl + dxbl*dyal)*2*xa +
+dxbpal*6*xa*ya + dybal*(xa^2-xc^2+rc^2-9*ya^2) - dycal*rb^2 + dycbl*ra^2 +
+(rb^2-ra^2)*3*ya $
+xnum-xnum_1;
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+ynum_1 : ((-dxbal*2*dycl - dxcal*dybl + dxcbl*dyal)*ya +dxbal*dxcl*xc +(dxbpal*dxcl - 2*dxal*dxbl)*xa) * 2 +
+3*dxbal*ya^2  + (-dybal*2*xc +(4*dycl+dybl+dyal)*2*xa) *ya + dxbal*xc^2 -(dxcbl+dxcal)*2*xa*xc -dxbal*3*xa^2 - dxbal*rc^2 + dxcal*rb^2 -dxcbl*ra^2  +
+(rb^2-ra^2)*xc + (2*(rc^2+xa^2-xc^2-3*ya^2)-rb^2-ra^2)*xa $
+ynum_1 - ynum;
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: comment start ]
+Then we compute platform cartesian Z position when homed based on the C tower geometry:
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+zCarriageHeight : zl*sqrt(1 - dxc^2 - dyc^2) ;
+xyPlatformDistToCarriage :  sqrt((x - xc - dxc*zl)^2 + (y - yc -dyc*zl)^2) ;
+zPlatformToCarriageHeight : sqrt(rc^2  - xyPlatformDistToCarriage^2) ;
+z: zCarriageHeight -  zPlatformToCarriageHeight;
+/* [wxMaxima: input   end   ] */
 
 /* [wxMaxima: section start ]
 Deriving the fitness function
