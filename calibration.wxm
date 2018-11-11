@@ -1,14 +1,15 @@
 /* [wxMaxima batch file version 1] [ DO NOT EDIT BY HAND! ]*/
-/* [ Created with wxMaxima version 16.12.2 ] */
-
+/* [ Created with wxMaxima version 18.10.0.unofficial ] */
 /* [wxMaxima: title   start ]
 Rostock Calibration
    [wxMaxima: title   end   ] */
+
 
 /* [wxMaxima: comment start ]
 Copyright © 2014-2018 Peter Hercek.
 You can use, modify, and redistribute this under GNU GENERAL PUBLIC LICENSE Version 3.
    [wxMaxima: comment end   ] */
+
 
 /* [wxMaxima: comment start ]
 This document helps to find proper values for these firmware parameters:
@@ -23,9 +24,11 @@ can optimize only two of these three at once. Otherwise the system would not be 
 enough and it would diverge.
    [wxMaxima: comment end   ] */
 
+
 /* [wxMaxima: section start ]
 Applicability
    [wxMaxima: section end   ] */
+
 
 /* [wxMaxima: comment start ]
 Errors in these firmware parameters can be fixed perfectly provided the assumptions bellow are
@@ -48,9 +51,11 @@ will be uniformly offset by the probe height error. Also the tower positions wil
 a tiny errors. If your towers are too tilted then try to be really precise with the probe height.
    [wxMaxima: comment end   ] */
 
+
 /* [wxMaxima: section start ]
 Notation
    [wxMaxima: section end   ] */
+
 
 /* [wxMaxima: comment start ]
 In this document:
@@ -74,14 +79,17 @@ then it will be the same as the firmware defaults computed from DELTA_RADIUS (se
 source code).
    [wxMaxima: comment end   ] */
 
+
 /* [wxMaxima: section start ]
 Input parameter definition
    [wxMaxima: section end   ] */
+
 
 /* [wxMaxima: comment start ]
 Define your geometry as specified in the firmware here (18 optimization parameters, zl and ph).
 ZL is not optimized - try to set it right.  PH is not optimized as well - try harder to set it right.
    [wxMaxima: comment end   ] */
+
 
 /* [wxMaxima: input   start ] */
 isla : 1/80.0 $
@@ -106,11 +114,13 @@ izl : 621.46 $
 iph : 9.5 $
 /* [wxMaxima: input   end   ] */
 
+
 /* [wxMaxima: comment start ]
 These tower positions and their errors are fixed because of the limitations we place on our coordinate system.
 We also fix the actual printer heigth zl to izl because there is a dependency between zl and endstop offset
 adjutements (oa, ob, oc). We cannot optimize (zl, oa, ob, oc) all together.
    [wxMaxima: comment end   ] */
+
 
 /* [wxMaxima: input   start ] */
 ixb : - ixa $
@@ -123,12 +133,11 @@ zl : izl $
 ph : iph $
 /* [wxMaxima: input   end   ] */
 
+
 /* [wxMaxima: section start ]
 Deriving cartesian->delta transformation
    [wxMaxima: section end   ] */
-
 /* [wxMaxima: fold    start ] */
-
 /* [wxMaxima: comment start ]
 DO NOT EXECUTE THIS SECTION WHEN CALIBRATING
    [wxMaxima: comment end   ] */
@@ -178,14 +187,14 @@ tower position offset due to cartesian z-height but that is trivial. Yeah, and d
 adjust tower positions based on the z-height.
    [wxMaxima: comment end   ] */
 
+
 /* [wxMaxima: fold    end   ] */
+
 
 /* [wxMaxima: section start ]
 Finding cartesian position after homing
    [wxMaxima: section end   ] */
-
 /* [wxMaxima: fold    start ] */
-
 /* [wxMaxima: comment start ]
 DO NOT EXECUTE THIS SECTION WHEN CALIBRATING
    [wxMaxima: comment end   ] */
@@ -262,11 +271,14 @@ zPlatformToCarriageHeight : sqrt(rc^2  - xyPlatformDistToCarriage^2) ;
 z: zCarriageHeight -  zPlatformToCarriageHeight;
 /* [wxMaxima: input   end   ] */
 
+
 /* [wxMaxima: fold    end   ] */
+
 
 /* [wxMaxima: section start ]
 Deriving the fitness function
    [wxMaxima: section end   ] */
+
 
 /* [wxMaxima: comment start ]
 Three equations (one for each tower) using precise callibration parameters for point (x,y) and tower
@@ -274,21 +286,25 @@ coordinates (ta,tb,tc). with carriage positions on towers (ta,tb,tc). These equa
 the head is at the heatbed (z=0). They use also precise tower postions ta, tb, tc for now.
    [wxMaxima: comment end   ] */
 
+
 /* [wxMaxima: input   start ] */
 A : (x-(xa+dxa*ta))^2 + (y-(ya+dya*ta))^2 + ta^2 *(1-dxa^2-dya^2) - ra^2 = 0 $
 B : (x-(xb+dxb*tb))^2 + (y-(yb+dyb*tb))^2 + tb^2 *(1-dxb^2-dyb^2) - rb^2 = 0 $
 C : (x-(xc+dxc*tc))^2 + (y-(yc+dyc*tc))^2 + tc^2 *(1-dxc^2-dyc^2) - rc^2 = 0 $
 /* [wxMaxima: input   end   ] */
 
+
 /* [wxMaxima: comment start ]
 Lets precisely tie all the calibration paramters for one (ta,tb,tc) representing one point on heatbed.
 We do it by getting rid of x and y (which we cannot precisely measure when Z-probing).
    [wxMaxima: comment end   ] */
 
+
 /* [wxMaxima: input   start ] */
 XYEqs: solve([C-A, C-B], [x,y])[1] $
 ZEq : subst( rhs(XYEqs[1]), lhs(XYEqs[1]), subst( rhs(XYEqs[2]), lhs(XYEqs[2]), C ) ) $
 /* [wxMaxima: input   end   ] */
+
 
 /* [wxMaxima: comment start ]
 We have all the 18 optimization parameters except (oa, ob, oc) and (sla, slb, slc) in ZEq now.
@@ -300,6 +316,7 @@ of a, b, c) from the top endstops using equations iTP. The precise equations TP 
 they contain also adjustement for ph. We derive what tX actually means first.
    [wxMaxima: comment end   ] */
 
+
 /* [wxMaxima: input   start ] */
 iTP : itXs = izl/islX - teXs $
 iSeq : solve(iTP, teXs)[1] ;
@@ -307,12 +324,14 @@ TP : tX = zl - (teXs+oXs)*slX - ph*sqrt(1+dxX^2+dyX^2) $
 Seq: subst(rhs(iSeq), lhs(iSeq), TP) ;
 /* [wxMaxima: input   end   ] */
 
+
 /* [wxMaxima: comment start ]
 We insert our substitue  for (ta, tb, tc) into ZEq and get ZFn with all the optimization paramters
 in it. We do the same for XYeqs.  XYeqs will be used only for visualization of the results. ZFn will
 be used for the calibration itself. ZFn is ready to receive our probe points (itas, itbs, itcs). Then we
 extend ZFn application over all measurement points in function ToZFns.
    [wxMaxima: comment end   ] */
+
 
 /* [wxMaxima: input   start ] */
 define(TxFn(oXs, slX, ioXs, islX, itXs, dxX, dyX), expand(rhs(Seq))) ;
@@ -332,9 +351,11 @@ subst(TxFn(ocs, slc, iocs, islc, itcs, dxc, dyc), tc,
 ToZFns(m) := map( lambda([args], apply(ZFn, args)), m ) $
 /* [wxMaxima: input   end   ] */
 
+
 /* [wxMaxima: section start ]
 Input of measurement points
    [wxMaxima: section end   ] */
+
 
 /* [wxMaxima: comment start ]
 Now we will Z-probe in at least as many points as the number of parameters we are goint to optimize.
@@ -346,6 +367,7 @@ points regularly spread over the whole heatbed. The measurement will be done by 
 the heatbed at these points and reading out the carriage positions on towers  from heatbed as reported by
 the firmware (itas,itbs,itcs). The data format is [[itas,itbs,itcs]]. Define the measured data m here:
    [wxMaxima: comment end   ] */
+
 
 /* [wxMaxima: input   start ] */
 gs : 12 ;
@@ -409,9 +431,11 @@ m :
 ,[22769,14730,22349] ,[19207,21073,23839] ,[20006,15785,24198] ,[15519,21611,23416]]$
 /* [wxMaxima: input   end   ] */
 
+
 /* [wxMaxima: section start ]
 Computation of calibration parameters
    [wxMaxima: section end   ] */
+
 
 /* [wxMaxima: comment start ]
 And finally we just need to find [xa,ya,xc,oa,ob,oc] which will minimize sum of squares of ZEq over m.
@@ -435,9 +459,11 @@ dependent. That means the position errors measured by z-probe in steps are about
 increase/decrease all of them by a constant factor.
    [wxMaxima: comment end   ] */
 
+
 /* [wxMaxima: input   start ] */
 load(minpack) $
 /* [wxMaxima: input   end   ] */
+
 
 /* [wxMaxima: input   start ] */
 define( ZFns_rs(ra,rb,rc, sla,slb,slc), ZFns ) $
@@ -445,9 +471,11 @@ define( ZFns_s(sla,slb,slc), ZFns ) $
 define( ZFns_r(ra,rb,rc), ZFns ) $
 /* [wxMaxima: input   end   ] */
 
+
 /* [wxMaxima: subsect start ]
 Selection of what NOT to optimize
    [wxMaxima: subsect end   ] */
+
 
 /* [wxMaxima: comment start ]
 We define optimization parameters which we keep fixed in fArg and their fixed value in fVal.
@@ -456,12 +484,11 @@ the optimal values starts is in vVal.
 Evaluate only one sub-sub-section below!
    [wxMaxima: comment end   ] */
 
+
 /* [wxMaxima: subsubsect start ]
 Zero tower tilt and fixed diagonal rod and microstep length
    [wxMaxima: subsubsect end   ] */
-
 /* [wxMaxima: fold    start ] */
-
 /* [wxMaxima: input   start ] */
 fArg:[ra,rb,rc,  sla,slb,slc,  dxa,dya, dxb,dyb, dxc,dyc] $ 
 fVal: [ira,irb,irc,  isla,islb,islc,  0,0,  0,0,  0,0] $
@@ -470,14 +497,14 @@ vVal: [ixa,iya,ixc,  0,0,0] $
 err: 'err_1 $
 /* [wxMaxima: input   end   ] */
 
+
 /* [wxMaxima: fold    end   ] */
+
 
 /* [wxMaxima: subsubsect start ]
 Fixed diagonal rod and microstep length
    [wxMaxima: subsubsect end   ] */
-
 /* [wxMaxima: fold    start ] */
-
 /* [wxMaxima: input   start ] */
 fArg:[ra,rb,rc, sla,slb,slc] $ 
 fVal: [ira,irb,irc, isla,islb,islc] $
@@ -486,14 +513,14 @@ vVal: [ixa,iya,ixc,  0,0,  0,0,  0,0,  0,0,0] $
 err: 'err_2 $
 /* [wxMaxima: input   end   ] */
 
+
 /* [wxMaxima: fold    end   ] */
+
 
 /* [wxMaxima: subsubsect start ]
 Fixed microstep length
    [wxMaxima: subsubsect end   ] */
-
 /* [wxMaxima: fold    start ] */
-
 /* [wxMaxima: input   start ] */
 fArg:[sla,slb,slc] $ 
 fVal: [isla,islb,islc] $
@@ -502,11 +529,14 @@ vVal: [ira,irb,irc,  ixa,iya,ixc,  0,0,  0,0,  0,0,  0,0,0] $
 err: 'err_3 $
 /* [wxMaxima: input   end   ] */
 
+
 /* [wxMaxima: fold    end   ] */
+
 
 /* [wxMaxima: subsubsect start ]
 Fixed diagonal rod length
    [wxMaxima: subsubsect end   ] */
+
 
 /* [wxMaxima: input   start ] */
 fArg:[ra,rb,rc] $ 
@@ -516,14 +546,17 @@ vVal: [isla,islb,islc,  ixa,iya,ixc,  0,0,  0,0,  0,0,  0,0,0] $
 err: 'err_4 $
 /* [wxMaxima: input   end   ] */
 
+
 /* [wxMaxima: subsect start ]
 Optimization
    [wxMaxima: subsect end   ] */
+
 
 /* [wxMaxima: comment start ]
 Run the optimization itself and store the result in RV. Compute the average postion error with
 the optimized parameters (avgPosErr).
    [wxMaxima: comment end   ] */
+
 
 /* [wxMaxima: input   start ] */
 define( funmake(ZFns, fArg), ToZFns(m) ) $
@@ -534,12 +567,11 @@ RV : append(
     makelist([vArg[i],RV_raw[1][i]], i, makelist(i,i,length(vArg)))) ;
 /* [wxMaxima: input   end   ] */
 
+
 /* [wxMaxima: subsect start ]
 Result analyzes
    [wxMaxima: subsect end   ] */
-
 /* [wxMaxima: fold    start ] */
-
 /* [wxMaxima: comment start ]
 Define analytics functions GetX, GetY, GetErr which compute XY position and the position error
 for the given (itas, itbs, itcs). Fill the analytics into lists: chck_3d, chck_2d, chck_err.  One element
@@ -594,7 +626,10 @@ plot2d([ [discrete,  sort(err_1)], [discrete, sort(err_2)], [discrete, sort(err_
      [title, "expected position error distribution [µm]"]) ;
 /* [wxMaxima: input   end   ] */
 
+
 /* [wxMaxima: fold    end   ] */
 
-/* Maxima can't load/batch files which end with a comment! */
-"Created with wxMaxima"$
+
+
+/* Old versions of Maxima abort on loading files that end in a comment. */
+"Created with wxMaxima 18.10.0.unofficial"$
