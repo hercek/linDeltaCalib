@@ -98,9 +98,9 @@ islc : isla $
 ira : 297.85 $
 irb : ira $
 irc : ira $
-ixa : -117.695 $
-iya : -68.122 $
-ixc : -0.951 $
+ixa : -117.19$
+iya : -68.03 $
+ixc : -1.06 $
 ioas : 0 $
 iobs : 0 $
 iocs : 0 $
@@ -111,7 +111,7 @@ idyb : 0 $
 idxc : 0 $
 idyc : 0 $
 izl : 619.1 $
-iph : 10.425 $
+iph : 10.26 $
 /* [wxMaxima: input   end   ] */
 
 
@@ -165,7 +165,7 @@ coeff(lhs(expand(Acur)), ta,0);
 /* [wxMaxima: input   end   ] */
 
 /* [wxMaxima: comment start ]
-The solution for ta in Acur would look much nicer if xy and ya were zero, i.e. the coordinate
+The solution for ta in Acur would look much nicer if xa and ya were zero, i.e. the coordinate
 system would be temporarily moved so that its center is at the tower base:
    [wxMaxima: comment end   ] */
 
@@ -312,16 +312,18 @@ ZEq is precise (it describes the real life) but the tower positions the firmware
 not precise (they use incorrect step length). We need to modify our ZEq so that it models also
 the imprecise step length used by firmware and imprecise ph shfited tower positions (itas, itbs, itcs)
 reported when probing. Firmware always counts number of steps teXs (X is a placeholder for one
-of a, b, c) from the top endstops using equations iTP. The precise equations TP  are analogous but
-they contain also adjustement for ph. We derive what tX actually means first.
+of a, b, c) from the top endstops using equations iTP. This teXs is also bigger because of z-probe
+height. The precise equations TP  are analogous but they contain also an approximate ph
+adjustement and endstop offset oXs to calibrate. We derive what tX actually means first.
    [wxMaxima: comment end   ] */
 
 
 /* [wxMaxima: input   start ] */
 iTP : itXs = izl/islX - teXs $
 iSeq : solve(iTP, teXs)[1] ;
-TP : tX = zl - (teXs+oXs)*slX - ph*sqrt(1+dxX^2+dyX^2) $
+TP : tX = zl + oXs*slX - teXs*slX - ph/sqrt(1-dxX^2-dyX^2) $
 Seq: subst(rhs(iSeq), lhs(iSeq), TP) ;
+expand(subst(islX, slX, Seq));
 /* [wxMaxima: input   end   ] */
 
 
@@ -334,18 +336,18 @@ extend ZFn application over all measurement points in function ToZFns.
 
 
 /* [wxMaxima: input   start ] */
-define(TxFn(oXs, slX, ioXs, islX, itXs, dxX, dyX), expand(rhs(Seq))) ;
+define(TxFn(oXs, slX, islX, itXs, dxX, dyX), expand(rhs(Seq))) ;
 
 define( ZFn(itas, itbs, itcs),
-subst(TxFn(oas, sla, ioas, isla, itas, dxa, dya), ta,
-subst(TxFn(obs, slb, iobs, islb, itbs, dxb, dyb), tb,
-subst(TxFn(ocs, slc, iocs, islc, itcs, dxc, dyc), tc,
+subst(TxFn(oas, sla, isla, itas, dxa, dya), ta,
+subst(TxFn(obs, slb, islb, itbs, dxb, dyb), tb,
+subst(TxFn(ocs, slc, islc, itcs, dxc, dyc), tc,
     lhs(ZEq))))) $
 
 XYFns :
-subst(TxFn(oas, sla, ioas, isla, itas, dxa, dya), ta,
-subst(TxFn(obs, slb, iobs, islb, itbs, dxb, dyb), tb,
-subst(TxFn(ocs, slc, iocs, islc, itcs, dxc, dyc), tc,
+subst(TxFn(oas, sla, isla, itas, dxa, dya), ta,
+subst(TxFn(obs, slb, islb, itbs, dxb, dyb), tb,
+subst(TxFn(ocs, slc, islc, itcs, dxc, dyc), tc,
     map(rhs, XYEqs)))) $
 
 ToZFns(m) := map( lambda([args], apply(ZFn, args)), m ) $
@@ -486,12 +488,28 @@ Evaluate only one sub-sub-section below!
 
 
 /* [wxMaxima: subsubsect start ]
-Zero tower tilt and fixed diagonal rod and microstep length
+Only endstop offsets
+   [wxMaxima: subsubsect end   ] */
+/* [wxMaxima: fold    start ] */
+/* [wxMaxima: input   start ] */
+fArg:[ra,rb,rc,  sla,slb,slc, xa,ya,xc,  dxa,dya, dxb,dyb, dxc, dyc] $
+fVal: [ira,irb,irc,  isla,islb,islc, ixa, iya, ixc,  idxa,idya,  idxb,idyb,  idxc,idyc] $
+vArg: [oas,obs,ocs] $
+vVal: [0,0,0] $
+err: 'err_0 $
+/* [wxMaxima: input   end   ] */
+
+
+/* [wxMaxima: fold    end   ] */
+
+
+/* [wxMaxima: subsubsect start ]
+Fixed tower tilt and fixed diagonal rod and microstep length
    [wxMaxima: subsubsect end   ] */
 /* [wxMaxima: fold    start ] */
 /* [wxMaxima: input   start ] */
 fArg:[ra,rb,rc,  sla,slb,slc,  dxa,dya, dxb,dyb, dxc,dyc] $ 
-fVal: [ira,irb,irc,  isla,islb,islc,  0,0,  0,0,  0,0] $
+fVal: [ira,irb,irc,  isla,islb,islc,  idxa,idya,  idxb,idyb,  idxc,idyc] $
 vArg: [xa,ya,xc,  oas,obs,ocs] $
 vVal: [ixa,iya,ixc,  0,0,0] $
 err: 'err_1 $
@@ -504,7 +522,8 @@ err: 'err_1 $
 /* [wxMaxima: subsubsect start ]
 Fixed diagonal rod and microstep length
    [wxMaxima: subsubsect end   ] */
-/* [wxMaxima: fold    start ] */
+
+
 /* [wxMaxima: input   start ] */
 fArg:[ra,rb,rc, sla,slb,slc] $ 
 fVal: [ira,irb,irc, isla,islb,islc] $
@@ -512,9 +531,6 @@ vArg: [xa,ya,xc,  dxa,dya,  dxb,dyb,  dxc,dyc,  oas,obs,ocs] $
 vVal: [ixa,iya,ixc,  0,0,  0,0,  0,0,  0,0,0] $
 err: 'err_2 $
 /* [wxMaxima: input   end   ] */
-
-
-/* [wxMaxima: fold    end   ] */
 
 
 /* [wxMaxima: subsubsect start ]
@@ -536,8 +552,7 @@ err: 'err_3 $
 /* [wxMaxima: subsubsect start ]
 Fixed diagonal rod length
    [wxMaxima: subsubsect end   ] */
-
-
+/* [wxMaxima: fold    start ] */
 /* [wxMaxima: input   start ] */
 fArg:[ra,rb,rc] $ 
 fVal: [ira,irb,irc] $
@@ -545,6 +560,9 @@ vArg: [sla,slb,slc,  xa,ya,xc,  dxa,dya,  dxb,dyb,  dxc,dyc,  oas,obs,ocs] $
 vVal: [isla,islb,islc,  ixa,iya,ixc,  0,0,  0,0,  0,0,  0,0,0] $
 err: 'err_4 $
 /* [wxMaxima: input   end   ] */
+
+
+/* [wxMaxima: fold    end   ] */
 
 
 /* [wxMaxima: subsect start ]
@@ -622,7 +640,7 @@ Compare error distributions between different optimization runs:
 
 /* [wxMaxima: input   start ] */
 plot2d([ [discrete,  sort(err_1)], [discrete, sort(err_2)], [discrete, sort(err_3)], [discrete, sort(err_4)] ],
-     [legend, "no tower tilt, rod and step length fixed", "rod and step length fixed", "step length fixed", "rod length fixed"],
+     [legend, "tower tilt, rod and step length fixed", "rod and step length fixed", "step length fixed", "rod length fixed"],
      [title, "expected position error distribution [µm]"]) ;
 /* [wxMaxima: input   end   ] */
 
