@@ -1,10 +1,11 @@
 import System.Random
+import System.Time
 
 xyRange :: Int
 xyRange = 96
 
 xyInc :: Int
-xyInc = 12 -- 16 or 12 for coarse or fine
+xyInc = 8 -- 16, 12, or 8 for coarse, fine, or super fine
 
 radiusSq :: Int
 radiusSq = 130*130
@@ -16,9 +17,9 @@ height :: Int
 height = 14
 
 main :: IO ()
-main = mkBgn >> go (shuffle 0 points)
+main = mkBgn >> getSeed >>= \s -> go (shuffle s points)
  where
-  go [] = return ()
+  go [] = putStrLn "G1 X0 Y0 Z100"
   go ((x,y):rest) =
     if x*x + y*y > radiusSq then go rest else do
     putStrLn $ mkG0 x y
@@ -39,6 +40,9 @@ main = mkBgn >> go (shuffle 0 points)
   mkG0 x y =
     showString "G1 X" $ shows x $ showString " Y" $ shows y $ showString " Z" $ show height
 
+  getSeed =
+    getClockTime >>= toCalendarTime >>= \t ->
+    return $ ((ctDay t * 24 + ctHour t)*60 + ctMin t)*60 + ctSec t
 
 points :: [(Int,Int)]
 points =
