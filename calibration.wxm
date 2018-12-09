@@ -45,10 +45,10 @@ our Z-probe and used here. Also our delta printers do not print sideways enough 
 the diagonal rod distance too much. Therefore there is a hope.
 * The Z-probe measure point should be just below the tip; i.e. its (x,y) offset should be (0,0). Small
 (x,y) offset will not have a big impact on the resutls if towers are not too tilted. The probe can have
-non-zero height. It should be set precisely. If towers are not too tilted then the main consequence of
-incorrectly set probe height is that all your computed tower endstop adjustements (oa,ob,oc)
+small non-zero height. It should be set precisely. If towers are not too tilted then the main consequence
+of incorrectly set probe height is that all your computed tower endstop adjustements (oa,ob,oc)
 will be uniformly offset by the probe height error. Also the tower positions will be computed with
-a tiny errors. If your towers are too tilted then try to be really precise with the probe height.
+a tiny errors. If your towers are too tilted then try to use as short probe as possible.
    [wxMaxima: comment end   ] */
 
 
@@ -314,14 +314,16 @@ the imprecise step length used by firmware and imprecise ph shfited tower positi
 reported when probing. Firmware always counts number of steps teXs (X is a placeholder for one
 of a, b, c) from the top endstops using equations iTP. This teXs is also bigger because of z-probe
 height. The precise equations TP  are analogous but they contain also an approximate ph
-adjustement and endstop offset oXs to calibrate. We derive what tX actually means first.
+adjustement and endstop offset oXs to calibrate. Note that probe height compensation is
+approximate and works well only for small tower tilts or small/zero probe height.
+We derive what tX actually means first.
    [wxMaxima: comment end   ] */
 
 
 /* [wxMaxima: input   start ] */
 iTP : itXs = izl/islX - teXs $
 iSeq : solve(iTP, teXs)[1] ;
-TP : tX = zl + oXs*slX - teXs*slX - ph/sqrt(1-dxX^2-dyX^2) $
+TP : tX = zl + oXs*slX - teXs*slX - ph $
 Seq: subst(rhs(iSeq), lhs(iSeq), TP) ;
 expand(subst(islX, slX, Seq));
 /* [wxMaxima: input   end   ] */
