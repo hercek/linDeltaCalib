@@ -1,0 +1,121 @@
+/* [wxMaxima batch file version 1] [ DO NOT EDIT BY HAND! ]*/
+/* [ Created with wxMaxima version 18.10.0.unofficial ] */
+/* [wxMaxima: section start ]
+Input parameter definition
+   [wxMaxima: section end   ] */
+
+
+/* [wxMaxima: comment start ]
+Define your geometry as specified in the firmware here (18 optimization parameters, zl and ph).
+ZL is not optimized - try to set it right.  PH is not optimized as well - try harder to set it right.
+   [wxMaxima: comment end   ] */
+
+
+/* [wxMaxima: input   start ] */
+sl : 1/80.0 $
+ra : 297.85 $
+rb : ra $
+rc : ra $
+xa_ : -117.26$
+ya_ : -68.23 $
+xc_ : -1.3$
+dxa : -0.0006 $
+dya : -0.0017 $
+dxb : -0.0007 $
+dyb : -0.0012 $
+dxc : 0.0000 $
+dyc : -0.0044 $
+/* [wxMaxima: input   end   ] */
+
+
+/* [wxMaxima: comment start ]
+These tower positions and their errors are fixed because of the limitations we place on our coordinate system.
+We also fix the actual printer heigth zl to izl because there is a dependency between zl and endstop offset
+adjutements (oa, ob, oc). We cannot optimize (zl, oa, ob, oc) all together.
+   [wxMaxima: comment end   ] */
+
+
+/* [wxMaxima: input   start ] */
+xb_ : -xa_ $
+yb_ : ya_ $
+yc_ : -2*ya_ $
+/* [wxMaxima: input   end   ] */
+
+
+/* [wxMaxima: section start ]
+Shifting tower positions to hight z
+   [wxMaxima: section end   ] */
+
+
+/* [wxMaxima: comment start ]
+Offset along each tower from the tower base to height z:
+   [wxMaxima: comment end   ] */
+
+
+/* [wxMaxima: input   start ] */
+tao(z) := z/sqrt(1 - dxa^2 - dya^2);
+tbo(z) := z/sqrt(1 - dxb^2 - dyb^2);
+tco(z) := z/sqrt(1 - dxc^2 - dyc^2);
+/* [wxMaxima: input   end   ] */
+
+
+/* [wxMaxima: comment start ]
+Length along tower (ta,tb,tc) and ower coordinates at height z (xa,ya,xb,yb,xc,yc)
+   [wxMaxima: comment end   ] */
+
+
+/* [wxMaxima: input   start ] */
+xa: xa_ + tao(z)*dxa;
+ya: ya_ + tao(z)*dya;
+xb: xb_ + tbo(z)*dxb;
+yb: yb_ + tbo(z)*dyb;
+xc: xc_ + tco(z)*dxc;
+yc: yc_ + tco(z)*dyc;
+/* [wxMaxima: input   end   ] */
+
+
+/* [wxMaxima: section start ]
+Finding delta coordinates from cartesian position
+   [wxMaxima: section end   ] */
+
+
+/* [wxMaxima: comment start ]
+Equations for each tower in the firmware. 
+   [wxMaxima: comment end   ] */
+
+
+/* [wxMaxima: input   start ] */
+Agen : (x-(xa+dxa*ta))^2 + (y-(ya+dya*ta))^2 + ta^2*(1-dxa^2-dya^2) - ra^2 = 0 ;
+Bgen : (x-(xb+dxb*tb))^2 + (y-(yb+dyb*tb))^2 + tb^2*(1-dxb^2-dyb^2) - rb^2 = 0 ;
+Cgen : (x-(xc+dxc*tc))^2 + (y-(yc+dyc*tc))^2 + tc^2*(1-dxc^2-dyc^2) - rc^2  = 0 ;
+/* [wxMaxima: input   end   ] */
+
+
+/* [wxMaxima: comment start ]
+Specialize equations for the specific cartesian coordinate (x,y,z).
+   [wxMaxima: comment end   ] */
+
+
+/* [wxMaxima: input   start ] */
+cps: [-7200,-7200,1040] $
+Acur: subst(cps[1]*sl,x, subst(cps[2]*sl,y, subst(cps[3]*sl,z, Agen))) ;
+Bcur: subst(cps[1]*sl,x, subst(cps[2]*sl,y, subst(cps[3]*sl,z, Bgen))) ;
+Ccur: subst(cps[1]*sl,x, subst(cps[2]*sl,y, subst(cps[3]*sl,z, Cgen))) ;
+/* [wxMaxima: input   end   ] */
+
+
+/* [wxMaxima: comment start ]
+Solve the equations.
+   [wxMaxima: comment end   ] */
+
+
+/* [wxMaxima: input   start ] */
+rhs(solve(Acur, ta)[2])/sl+tao(cps[3]), numer;
+rhs(solve(Bcur, tb)[2])/sl+tbo(cps[3]), numer;
+rhs(solve(Ccur, tc)[2])/sl+tco(cps[3]), numer;
+/* [wxMaxima: input   end   ] */
+
+
+
+/* Old versions of Maxima abort on loading files that end in a comment. */
+"Created with wxMaxima 18.10.0.unofficial"$
