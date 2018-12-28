@@ -1,0 +1,85 @@
+/* [wxMaxima batch file version 1] [ DO NOT EDIT BY HAND! ]*/
+/* [ Created with wxMaxima version 18.10.0.unofficial ] */
+/* [wxMaxima: title   start ]
+Compute X/Y tower tilt from radial/diagonal tilt
+   [wxMaxima: title   end   ] */
+
+
+/* [wxMaxima: comment start ]
+Put measurement results here.
+α equals 30° for A tower and -30° for B tower
+r is radial tilt in mm over 180 mm ditance in the direction away from X axe
+d is diagonal tilt in mm over 180 mm distance in the direction away from (0,0)
+   [wxMaxima: comment end   ] */
+
+
+/* [wxMaxima: input   start ] */
+α: %pi/6$
+r: 0.2$
+d: 0.25$
+/* [wxMaxima: input   end   ] */
+
+
+/* [wxMaxima: comment start ]
+Find (1,b1,c1) coefictients for plane1 defining radial tilt; [1,b1,c1]·V=0
+   [wxMaxima: comment end   ] */
+
+
+/* [wxMaxima: input   start ] */
+x10: -cos(α)$
+y10: -sin(α)$
+z10: 0$
+x11: if r=0 then 0 else sin(α) $
+y11: if r=0 then 0 else -cos(α) $
+z11: if r=0 then 1 else 180/r $
+A1: x10 + b1*y10 +c1*z10 = 0;
+B1: x11 + b1*y11 + c1*z11 = 0;
+plane1: solve([A1,B1]);
+
+/* [wxMaxima: input   end   ] */
+
+
+/* [wxMaxima: comment start ]
+Find (1,b2,c2) coefictients for plane2 defining diagonal tilt; [1,b2,c2]·V=0
+   [wxMaxima: comment end   ] */
+
+
+/* [wxMaxima: input   start ] */
+x20:  sin(α)$
+y20: -cos(α)$
+z20: 0$
+x21: if d=0 then 0 else -cos(α) $
+y21: if d=0 then 0 else -sin(α) $
+z21: if d=0 then 1 else 180/d $
+A2: x20 + b2*y20 +c2*z20 = 0;
+B2: x21 + b2*y21 + c2*z21 = 0;
+plane2: solve([A2,B2]);
+/* [wxMaxima: input   end   ] */
+
+
+/* [wxMaxima: comment start ]
+Find coeficients (a,b,1) for parametric definition of the tower: t×[a,b,1]
+   [wxMaxima: comment end   ] */
+
+
+/* [wxMaxima: input   start ] */
+A: a + b * assoc(b1, plane1[1], und) + assoc(c1,plane1[1], und)  = 0;
+B: a + b * assoc(b2, plane2[1], und) + assoc(c2,plane2[1], und)  = 0;
+tower: solve([A,B]);
+/* [wxMaxima: input   end   ] */
+
+
+/* [wxMaxima: comment start ]
+And finaly compute the dxTower, dyTower:
+   [wxMaxima: comment end   ] */
+
+
+/* [wxMaxima: input   start ] */
+dxTower: assoc(a,tower[1],und) / sqrt(1+assoc(a,tower[1],und)^2), numer;
+dyTower: assoc(b,tower[1],und) / sqrt(1+assoc(b,tower[1],und)^2), numer;
+/* [wxMaxima: input   end   ] */
+
+
+
+/* Old versions of Maxima abort on loading files that end in a comment. */
+"Created with wxMaxima 18.10.0.unofficial"$
