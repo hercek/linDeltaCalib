@@ -1,0 +1,149 @@
+/* [wxMaxima batch file version 1] [ DO NOT EDIT BY HAND! ]*/
+/* [ Created with wxMaxima version 18.10.0.unofficial ] */
+/* [wxMaxima: comment start ]
+This notebook generates probing data from a aperfect printer.
+   [wxMaxima: comment end   ] */
+
+
+/* [wxMaxima: section start ]
+Input parameter definition
+   [wxMaxima: section end   ] */
+
+
+/* [wxMaxima: comment start ]
+Define geometry of the perfect printer which will generate the probe points here.
+   [wxMaxima: comment end   ] */
+
+
+/* [wxMaxima: input   start ] */
+sl : 1/80.0 $
+ra : 260 $
+rb : ra $
+rc : ra $
+xa_ : -250/2*cos(%pi/6) $
+ya_ : -250/2*sin(%pi/6) $
+xc_ : 0 $
+dxa : 0 $
+dya : 0 $
+dxb : 0 $
+dyb : 0 $
+dxc : 0 $
+dyc : 0 $
+ph : 10 $
+/* [wxMaxima: input   end   ] */
+
+
+/* [wxMaxima: comment start ]
+These tower positions are fixed because of the limitations we place on our coordinate system.
+   [wxMaxima: comment end   ] */
+
+
+/* [wxMaxima: input   start ] */
+xb_ : -xa_ $
+yb_ : ya_ $
+yc_ : -2*ya_ $
+/* [wxMaxima: input   end   ] */
+
+
+/* [wxMaxima: section start ]
+Shifting tower positions to hight z
+   [wxMaxima: section end   ] */
+
+
+/* [wxMaxima: comment start ]
+Offset along each tower from the tower base to height z:
+   [wxMaxima: comment end   ] */
+
+
+/* [wxMaxima: input   start ] */
+tao(z) := z/sqrt(1 - dxa^2 - dya^2);
+tbo(z) := z/sqrt(1 - dxb^2 - dyb^2);
+tco(z) := z/sqrt(1 - dxc^2 - dyc^2);
+/* [wxMaxima: input   end   ] */
+
+
+/* [wxMaxima: comment start ]
+Length along tower (ta,tb,tc) and ower coordinates at height of the z-probe (xa,ya,xb,yb,xc,yc)
+   [wxMaxima: comment end   ] */
+
+
+/* [wxMaxima: input   start ] */
+xa: xa_ + tao(ph)*dxa;
+ya: ya_ + tao(ph)*dya;
+xb: xb_ + tbo(ph)*dxb;
+yb: yb_ + tbo(ph)*dyb;
+xc: xc_ + tco(ph)*dxc;
+yc: yc_ + tco(ph)*dyc;
+/* [wxMaxima: input   end   ] */
+
+
+/* [wxMaxima: section start ]
+Finding delta coordinates from cartesian z-probing position
+   [wxMaxima: section end   ] */
+
+
+/* [wxMaxima: comment start ]
+Equations for each tower in the firmware. 
+   [wxMaxima: comment end   ] */
+
+
+/* [wxMaxima: input   start ] */
+Agen : (x-(xa+dxa*ta))^2 + (y-(ya+dya*ta))^2 + ta^2*(1-dxa^2-dya^2) - ra^2 = 0 ;
+Bgen : (x-(xb+dxb*tb))^2 + (y-(yb+dyb*tb))^2 + tb^2*(1-dxb^2-dyb^2) - rb^2 = 0 ;
+Cgen : (x-(xc+dxc*tc))^2 + (y-(yc+dyc*tc))^2 + tc^2*(1-dxc^2-dyc^2) - rc^2  = 0 ;
+/* [wxMaxima: input   end   ] */
+
+
+/* [wxMaxima: comment start ]
+Specialize equations for the probe height ph.
+   [wxMaxima: comment end   ] */
+
+
+/* [wxMaxima: input   start ] */
+Acur: subst(ph,z, Agen) ;
+Bcur: subst(ph,z, Bgen) ;
+Ccur: subst(ph,z, Cgen) ;
+/* [wxMaxima: input   end   ] */
+
+
+/* [wxMaxima: comment start ]
+Solve the equations.
+   [wxMaxima: comment end   ] */
+
+
+/* [wxMaxima: input   start ] */
+define(TaFn(x,y), round(rhs(solve(Acur, ta)[2])/sl + tao(ph/sl))) ;
+define(TbFn(x,y), round(rhs(solve(Bcur, tb)[2])/sl + tbo(ph/sl))) ;
+define(TcFn(x,y), round(rhs(solve(Ccur, tc)[2])/sl + tco(ph/sl))) ;
+/* [wxMaxima: input   end   ] */
+
+
+/* [wxMaxima: section start ]
+Creation of the probing points
+   [wxMaxima: section end   ] */
+
+
+/* [wxMaxima: input   start ] */
+rMax : 120^2 $
+xyMax : 100 $
+gs : 12 $
+cnt : round(xyMax/gs) ;
+coords : makelist(gs*i, i, -cnt, cnt);
+xyCoordsAll  : create_list([x,y], x, coords, y, coords ) $
+xyCoords : apply (append, map(lambda([p], if p[1]^2 + p[2]^2 <= rMax then [p] else [] ), xyCoordsAll)) ;
+/* [wxMaxima: input   end   ] */
+
+
+/* [wxMaxima: section start ]
+Computing the tower coordinates at the probing points
+   [wxMaxima: section end   ] */
+
+
+/* [wxMaxima: input   start ] */
+RV : map(lambda([x], [apply(TaFn,x), apply(TbFn,x), apply(TcFn,x)]), xyCoords);
+/* [wxMaxima: input   end   ] */
+
+
+
+/* Old versions of Maxima abort on loading files that end in a comment. */
+"Created with wxMaxima 18.10.0.unofficial"$
