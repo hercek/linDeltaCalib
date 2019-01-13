@@ -381,7 +381,6 @@ interested in this then read more in sub-section 8.1.
 
 
 /* [wxMaxima: input   start ] */
-gs : 12 $
 m :
 [[21563,13648,11993],[21576,13668,13235],[21544,13618,14295],[21468,13494,15214],[21347,13296,16017]
 ,[21180,13019,16723],[20966,12659,17343],[20704,12207,17886],[20391,11651,18361],[20025,10976,18771]
@@ -622,9 +621,9 @@ define( funmake(GetY_hlp, append(fArg, vArg)), XYFns[2]) $
 define( GetY(itas, itbs, itcs), apply(GetY_hlp, append(fVal, RV_raw[1])) ) $
 define( funmake(GetErr_hlp, append(fArg, vArg)), ZFn(itas, itbs, itcs)) $
 define( GetErr(itas, itbs, itcs), apply(GetErr_hlp, append(fVal, RV_raw[1]))/(2*irc) ) $
-chck_3d: map( lambda([p], [[round(apply(GetX, p)/gs), round(apply(GetY, p)/gs)], abs(round(1000*apply(GetErr, p)))]), m ) $
+chck_3d: sort(map( lambda([p], [[round(apply(GetX, p)), round(apply(GetY, p))], abs(round(1000*apply(GetErr, p)))]), m )) $
 chck_2d: map( lambda([p], p[1]), chck_3d ) $
-chck_err: map( lambda([p], p[2]), chck_3d ) $
+chck_err: sort(map( lambda([p], p[2]), chck_3d )) $
 ''err: chck_err $
 /* [wxMaxima: input   end   ] */
 
@@ -641,7 +640,7 @@ Show the distribution of the position error after optimization:
    [wxMaxima: comment end   ] */
 
 /* [wxMaxima: input   start ] */
-plot2d([discrete, sort(chck_err)], grid2d) ;
+plot2d([discrete, chck_err], grid2d) ;
 /* [wxMaxima: input   end   ] */
 
 /* [wxMaxima: comment start ]
@@ -649,8 +648,9 @@ Show the position error map after optimization:
    [wxMaxima: comment end   ] */
 
 /* [wxMaxima: input   start ] */
-f(x,y) := 'assoc([round(x),round(y)], chck_3d, und) $
-plot3d(f(x,y), [x,-8,8], [y,-8,8], [grid,32,32], color_bar, [ztics,false], [title, "position error [µm]"], [elevation,0], [azimuth,0]) ;
+selMin(d, v, l) := if [] = l then v else if l[1][1] >= d then selMin(d, v, rest(l)) else selMin(l[1][1], l[1][2], rest(l))  ;
+f(x,y) := selMin(200, und , map( lambda([p], [(p[1][1]-x)^2 + (p[1][2]-y)^2, p[2]]), chck_3d )) ;
+plot3d(f(x,y), [x,-80,80], [y,-80,80], [grid,32,32], color_bar, [ztics,false], [title, "position error [µm]"], [elevation,0], [azimuth,0]) ;
 /* [wxMaxima: input   end   ] */
 
 /* [wxMaxima: comment start ]

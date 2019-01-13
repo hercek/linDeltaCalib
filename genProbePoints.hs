@@ -1,14 +1,18 @@
 import System.Random
 import System.Time
+import Numeric
 
 xyRange :: Int
-xyRange = 96
+xyRange = 96-8
 
-xyInc :: Int
-xyInc = 8 -- 16, 12, or 8 for coarse, fine, or super fine
+xHalfInc :: Int
+xHalfInc = 4 -- 8, 6, or 4 for coarse, fine, or super fine
 
-radiusSq :: Int
-radiusSq = 130*130
+yInc :: Double
+yInc = toEnum xHalfInc * sqrt(2*2-1*1)
+
+radiusSq :: Double
+radiusSq = 122.0*122.0
 
 speed :: Int
 speed = 90*60
@@ -21,7 +25,7 @@ main = mkBgn >> getSeed >>= \s -> go (shuffle s points)
  where
   go [] = putStrLn "G1 X0 Y0 Z100"
   go ((x,y):rest) =
-    if x*x + y*y > radiusSq then go rest else do
+    if toEnum (x*x) + y*y > radiusSq then go rest else do
     putStrLn $ mkG0 x y
     putStrLn "G30" -- modify the probe command here!
     go rest
@@ -38,16 +42,23 @@ main = mkBgn >> getSeed >>= \s -> go (shuffle s points)
     , "G0 X0 Y0" ]
 
   mkG0 x y =
-    showString "G1 X" $ shows x $ showString " Y" $ shows y $ showString " Z" $ show height
+    showString "G1 X" $ shows x $ showString " Y" $ showFFloat (Just 3) y $ showString " Z" $ show height
 
   getSeed =
     getClockTime >>= toCalendarTime >>= \t ->
     return $ ((ctDay t * 24 + ctHour t)*60 + ctMin t)*60 + ctSec t
 
-points :: [(Int,Int)]
+points :: [(Int,Double)]
 points =
-  let range = [0-xyRange, xyInc-xyRange .. xyRange] in
-  concat $ map (\r -> zip range (repeat r)) range
+  let columns  = [-xyRangeD, -xyRangeD+yInc .. xyRangeD] in
+  concat $ makePairs True columns
+  where
+    makePairs _ [] = []
+    makePairs True  (y:ys) = zip evenRows (repeat y) : makePairs False ys
+    makePairs False (y:ys) = zip oddRows  (repeat y) : makePairs True  ys
+    evenRows = [-xyRange,          -xyRange+2*xHalfInc .. xyRange]
+    oddRows  = [-xyRange+xHalfInc, -xyRange+3*xHalfInc .. xyRange]
+    xyRangeD = toEnum xyRange
 
 
 shuffle :: Int -> [a] -> [a]
