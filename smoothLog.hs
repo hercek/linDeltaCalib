@@ -1,9 +1,11 @@
 import Numeric
-import Data.Ord
 import Data.Maybe
 import Data.List
 import System.IO
-import qualified Data.Map as Map
+import System.Exit
+import System.IO.Error
+import System.Environment
+import qualified Data.Map.Strict as Map
 import Text.ParserCombinators.ReadP
 
 stepsPerMm :: Double
@@ -19,22 +21,22 @@ xyStart :: Double
 xyStart = 88
 
 data TKey = Key
-  {mXi :: Int
-  ,mYi :: Int
+  {mXi :: !Int
+  ,mYi :: !Int
   } deriving (Eq, Ord, Show)
 
 data TAvgInfo = AvgInfo
-  {mK :: TKey
-  ,mW :: Double
+  {mK :: !TKey
+  ,mW :: !Double
   } deriving Show
 
 data TProbePoint = ProbePoint
-  {mX :: Double -- ^ cartesian coordinate X
-  ,mY :: Double -- ^ cartesian coordinate Y
-  ,mZ :: Double -- ^ cartesian coordinate Z
-  ,mA :: Int -- ^ delta coordinate A
-  ,mB :: Int -- ^ delta coordinate B
-  ,mC :: Int -- ^ delta coordinate C
+  {mX :: !Double -- ^ cartesian coordinate X
+  ,mY :: !Double -- ^ cartesian coordinate Y
+  ,mZ :: !Double -- ^ cartesian coordinate Z
+  ,mA :: !Int -- ^ delta coordinate A
+  ,mB :: !Int -- ^ delta coordinate B
+  ,mC :: !Int -- ^ delta coordinate C
   } deriving Show
 
 
@@ -108,15 +110,43 @@ toKey pp = Key (round $ (mX pp + xyStart)/xInc) (round $ (mY pp + xyStart)/yInc)
 addKeys :: TKey -> TKey -> TKey
 addKeys (Key x1 y1) (Key x2 y2) = Key (x1+x2) (y1+y2)
 
+addPoints :: TProbePoint -> TProbePoint -> TProbePoint
+addPoints a b = ProbePoint (mX a + mX b) (mY a + mY b) (mZ a + mZ b) (mA a + mA b) (mB a + mB b) (mC a + mC b)
+
+scalePoint :: Double -> TProbePoint -> TProbePoint
+scalePoint s a =
+  let scale fn = round $ toEnum (fn a) * s in
+  ProbePoint (mX a * s) (mY a * s) (mZ a * s) (scale mA) (scale mB) (scale mC)
 
 main :: IO ()
 main = do
-  mapM_ (hPrint stderr) avgDef
-  logText <- getContents
+  logFileNames <- getArgs
+  pointMapLst <- catchIOError (mapM readLogFile logFileNames) $ \e ->
+    hPrint stderr e >> hPutStrLn stderr "Ussage: smoothLog <logFileName>*" >> exitWith (ExitFailure 1)
+  if null logFileNames then mapM_ (hPrint stderr) avgDef else do
+  let pointMap = averagePointMaps pointMapLst
+  let filteredPoints = catMaybes $ map (filterProbePoint pointMap) $ Map.elems pointMap
+  mapM_ printProbePoint filteredPoints
+
+
+readLogFile :: String -> IO (Map.Map TKey TProbePoint)
+readLogFile fileName = do
+  hnd <- openFile fileName ReadMode
+  logText <- hGetContents hnd
   let ps = readPoints Nothing $ lines logText
-  let pm = foldr (\p m -> Map.insert (toKey p) p m) Map.empty ps
-  let fps = catMaybes $ map (filterProbePoint pm) ps
-  mapM_ printProbePoint $ sortBy (comparing toKey) fps
+  return $ foldl' (\m p -> Map.insert (toKey p) p m) Map.empty ps
+
+
+averagePointMaps :: [Map.Map TKey TProbePoint] -> Map.Map TKey TProbePoint
+averagePointMaps [] = Map.empty
+averagePointMaps pms@(pm:_) =
+  let pss = map (\k -> catMaybes $ map (Map.lookup k) pms) $ Map.keys pm in
+  foldl' addPointAvgToMap Map.empty pss
+  where
+    addPointAvgToMap m [] = m
+    addPointAvgToMap m ps@(_:_) =
+      let pointAverage = scalePoint (1.0 / (toEnum $length ps)) (foldl1' addPoints ps) in
+      Map.insert (toKey pointAverage) pointAverage m
 
 
 printProbePoint :: TProbePoint -> IO()
